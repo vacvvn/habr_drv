@@ -1,8 +1,96 @@
+/*
+статься на хабре: 
+https://habr.com/ru/post/106702/
+
+........................................
+root@joker:/tmp/habr_drv# make
+make -C /lib/modules/4.15.0-106-generic/build M=/home/vacvvn/software/examples/kernel_example/habr_drv modules
+make[1]: Entering directory '/usr/src/linux-headers-4.15.0-106-generic'
+  CC [M]  /home/vacvvn/software/examples/kernel_example/habr_drv/habr_drv.o
+  Building modules, stage 2.
+  MODPOST 1 modules
+  LD [M]  /home/vacvvn/software/examples/kernel_example/habr_drv/habr_drv.ko
+make[1]: Leaving directory '/usr/src/linux-headers-4.15.0-106-generic'
+
+Теперь посмотрим информацию о только что скомпилированном модуле:
+
+root@joker:/tmp/habr_drv# modinfo habr_drv.ko
+filename: habr_drv.ko
+description: My nice module
+author: Alex Petrov <druid@joker.botik.ru>
+license: GPL
+depends:
+vermagic: 2.6.26-2-openvz-amd64 SMP mod_unload modversions
+
+Ну и наконец установим модуль в ядро:
+
+root@joker:/tmp/habr_drv# insmod habr_drv.ko
+
+Посмотрим есть ли наш модуль с списке:
+
+root@joker:/tmp/habr_drv# lsmod | grep habr_drv
+
+habr_drv 6920 0
+
+
+И что попало в логи:
+
+root@joker:/tmp/habr_drv# dmesg | tail
+
+[829528.598922] Test module is loaded!
+[829528.598926] Please, create a dev file with 'mknod /dev/habr_drv c 249 0'.
+
+
+Наш модуль подсказываем нам что нужно сделать.
+
+Последуем его совету:
+
+root@joker:/tmp/habr_drv# mknod /dev/habr_drv c 249 0
+
+Ну и наконец проверим работает ли наш модуль:
+
+root@joker:/tmp/habr_drv# cat /dev/habr_drv
+
+habr_drv
+
+Наш модуль не поддерживает приём данных со стороны пользователя:
+
+root@joker:/tmp/habr_drv# echo 1 > /dev/habr_drv
+
+bash: echo: ошибка записи: Недопустимый аргумент
+
+Посмотрим что что скажет модуль на наши действия:
+
+root@joker:/tmp/habr_drv# dmesg | tail
+
+[829528.598922] Test module is loaded!
+[829528.598926] Please, create a dev file with 'mknod /dev/habr_drv c 249 0'.
+[829747.462715] Sorry, this operation isn't supported.
+
+
+Удалим его:
+
+root@joker:/tmp/habr_drv# rmmod habr_drv
+
+И посмотрим что он нам скажет на прощание:
+
+root@joker:/tmp/habr_drv# dmesg | tail
+
+[829528.598922] Test module is loaded!
+[829528.598926] Please, create a dev file with 'mknod /dev/habr_drv c 249 0'.
+[829747.462715] Sorry, this operation isn't supported.
+[829893.681197] Test module is unloaded!
+
+
+Удалим файл устройства, что бы он нас не смущал:
+
+root@joker:/tmp/habr_drv# rm /dev/habr_drv
+*/
 #include <linux/kernel.h> /* Для printk() и т.д. */
 #include <linux/module.h> /* Эта частичка древней магии, которая оживляет модули */
 #include <linux/init.h>   /* Определения макросов */
 #include <linux/fs.h>
-#include <asm/uaccess.h> /* put_user */
+// #include <asm/uaccess.h> /* put_user */
 
 // Ниже мы задаём информацию о модуле, которую можно будет увидеть с помощью Modinfo
 MODULE_LICENSE("GPL");
@@ -103,10 +191,11 @@ static ssize_t device_read(struct file *filp, /* include/linux/fs.h */
 
     if (*text_ptr == 0)
         return 0;
-
+    printk(KERN_INFO "[device read func]\n>");
     while (length && *text_ptr)
     {
-        put_user(*(text_ptr++), buffer++);
+        // put_user(*(text_ptr++), buffer++);
+        printk(KERN_INFO "%c",*text_ptr++);
         length--;
         byte_read++;
     }
