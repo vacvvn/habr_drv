@@ -1,5 +1,5 @@
 /*
-статься на хабре: 
+статья на хабре: 
 https://habr.com/ru/post/106702/
 
 ........................................
@@ -90,16 +90,24 @@ root@joker:/tmp/habr_drv# rm /dev/habr_drv
 #include <linux/module.h> /* Эта частичка древней магии, которая оживляет модули */
 #include <linux/init.h>   /* Определения макросов */
 #include <linux/fs.h>
+/*
+Hi! When building the enhanced example with character device, I encountered a build error for kernel 4.15.0–52-generic on 64-bit Mint/Ubuntu:
+```
+./arch/x86/include/asm/uaccess.h: In function ‘set_fs’: ./arch/x86/include/asm/uaccess.h:32:9: error: dereferencing pointer to incomplete type ‘struct task_struct’ current->thread.addr_limit = fs;
+```
+The answer to this problem is to include linux/uaccess.h header instead of asm/uaccess.h
+*/
 // #include <asm/uaccess.h> /* put_user */
+#include <linux/uaccess.h> /* put_user */
 
 // Ниже мы задаём информацию о модуле, которую можно будет увидеть с помощью Modinfo
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Alex Petrov <petroff.alex@gmail.com>");
 MODULE_DESCRIPTION("My nice module");
-MODULE_SUPPORTED_DEVICE("test"); /* /dev/testdevice */
+MODULE_SUPPORTED_DEVICE("habr_drv"); /* /dev/habr_drvdevice */
 
 #define SUCCESS 0
-#define DEVICE_NAME "test" /* Имя нашего устройства */
+#define DEVICE_NAME "habr_drv" /* Имя нашего устройства */
 
 // Поддерживаемые нашим устройством операции
 static int device_open(struct inode *, struct file *);
@@ -110,7 +118,7 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 // Глобальные переменные, объявлены как static, воизбежание конфликтов имен.
 static int major_number;        /* Старший номер устройства нашего драйвера */
 static int is_device_open = 0;  /* Используется ли девайс ? */
-static char text[5] = "test\n"; /* Текст, который мы будет отдавать при обращении к нашему устройству */
+static char text[5] = "habr_drv\n"; /* Текст, который мы будет отдавать при обращении к нашему устройству */
 static char *text_ptr = text;   /* Указатель на текущую позицию в тексте */
 
 // Прописываем обработчики операций на устройством
@@ -122,7 +130,7 @@ static struct file_operations fops =
         .release = device_release};
 
 // Функция загрузки модуля. Входная точка. Можем считать что это наш main()
-static int __init test_init(void)
+static int __init habr_drv_init(void)
 {
     printk(KERN_ALERT "TEST driver loaded!\n");
 
@@ -138,13 +146,13 @@ static int __init test_init(void)
     // Сообщаем присвоенный нам старший номер устройства
     printk("Test module is loaded!\n");
 
-    printk("Please, create a dev file with 'mknod /dev/test c %d 0'.\n", major_number);
+    printk("Please, create a dev file with 'mknod /dev/habr_drv c %d 0'.\n", major_number);
 
     return SUCCESS;
 }
 
 // Функция выгрузки модуля
-static void __exit test_exit(void)
+static void __exit habr_drv_exit(void)
 {
     // Освобождаем устройство
     unregister_chrdev(major_number, DEVICE_NAME);
@@ -153,8 +161,8 @@ static void __exit test_exit(void)
 }
 
 // Указываем наши функции загрузки и выгрузки
-module_init(test_init);
-module_exit(test_exit);
+module_init(habr_drv_init);
+module_exit(habr_drv_exit);
 
 static int device_open(struct inode *inode, struct file *file)
 {
@@ -194,8 +202,8 @@ static ssize_t device_read(struct file *filp, /* include/linux/fs.h */
     printk(KERN_INFO "[device read func]\n>");
     while (length && *text_ptr)
     {
-        // put_user(*(text_ptr++), buffer++);
-        printk(KERN_INFO "%c",*text_ptr++);
+        put_user(*(text_ptr++), buffer++);
+        // printk(KERN_INFO "%c",*text_ptr++);
         length--;
         byte_read++;
     }
