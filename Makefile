@@ -29,7 +29,12 @@ clean:
 depend .depend dep:
 	$(CC) $(EXTRA_CFLAGS) -M *.c > .depend
 
-
+test:
+	sudo dmesg -C
+	sudo insmod habr_drv.ko
+	sudo rmmod  habr_drv.ko
+	dmesg
+ 
 ifeq (.depend,$(wildcard .depend))
 include .depend
 endif
