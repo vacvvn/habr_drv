@@ -54,7 +54,7 @@ root@joker:/tmp/habr_drv# cat /dev/habr_drv
 habr_drv
 
 Наш модуль не поддерживает приём данных со стороны пользователя:
-
+Внимание, команду давать из под рута!
 root@joker:/tmp/habr_drv# echo 1 > /dev/habr_drv
 
 bash: echo: ошибка записи: Недопустимый аргумент
@@ -118,7 +118,7 @@ static ssize_t device_write(struct file *, const char *, size_t, loff_t *);
 // Глобальные переменные, объявлены как static, воизбежание конфликтов имен.
 static int major_number;        /* Старший номер устройства нашего драйвера */
 static int is_device_open = 0;  /* Используется ли девайс ? */
-static char text[5] = "habr_drv\n"; /* Текст, который мы будет отдавать при обращении к нашему устройству */
+static char text[] = "habr_drv inner text for reading\n"; /* Текст, который мы будет отдавать при обращении к нашему устройству */
 static char *text_ptr = text;   /* Указатель на текущую позицию в тексте */
 
 // Прописываем обработчики операций на устройством
@@ -132,19 +132,19 @@ static struct file_operations fops =
 // Функция загрузки модуля. Входная точка. Можем считать что это наш main()
 static int __init habr_drv_init(void)
 {
-    printk(KERN_ALERT "TEST driver loaded!\n");
+    printk(KERN_ALERT "habr_drv driver loaded!\n");
 
     // Регистрируем устройсво и получаем старший номер устройства
     major_number = register_chrdev(0, DEVICE_NAME, &fops);
 
     if (major_number < 0)
     {
-        printk("Registering the character device failed with %d\n", major_number);
+        printk("Registering the character device Habr_drv failed with %d\n", major_number);
         return major_number;
     }
 
     // Сообщаем присвоенный нам старший номер устройства
-    printk("Test module is loaded!\n");
+    printk("Habr_drv module is loaded!\n");
 
     printk("Please, create a dev file with 'mknod /dev/habr_drv c %d 0'.\n", major_number);
 
@@ -157,7 +157,7 @@ static void __exit habr_drv_exit(void)
     // Освобождаем устройство
     unregister_chrdev(major_number, DEVICE_NAME);
 
-    printk(KERN_ALERT "Test module is unloaded!\n");
+    printk(KERN_ALERT "habr_drv module is unloaded! Bye!\n");
 }
 
 // Указываем наши функции загрузки и выгрузки
@@ -186,6 +186,7 @@ static ssize_t
 
 device_write(struct file *filp, const char *buff, size_t len, loff_t *off)
 {
+    printk(KERN_INFO "[device write func]\n");
     printk("Sorry, this operation isn't supported.\n");
     return -EINVAL;
 }
@@ -199,7 +200,7 @@ static ssize_t device_read(struct file *filp, /* include/linux/fs.h */
 
     if (*text_ptr == 0)
         return 0;
-    printk(KERN_INFO "[device read func]\n>");
+    printk(KERN_INFO "[device read func]\n");
     while (length && *text_ptr)
     {
         put_user(*(text_ptr++), buffer++);
